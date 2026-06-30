@@ -1,0 +1,934 @@
+<title>할 일 목록</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #C9EDE8;
+    --phone-bg: #F2FAFA;
+    --surface: #E2F5F2;
+    --surface-2: #D4EEE9;
+    --accent: #2BAF9A;
+    --accent-dim: #C0EBE4;
+    --text: #1A3330;
+    --text-muted: #6FA89F;
+    --done-text: #A3CEC8;
+    --danger: #E07070;
+    --shadow: 0 2px 12px rgba(30,90,80,0.09);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --font: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  .phone {
+    width: 390px;
+    min-height: 720px;
+    background: var(--phone-bg);
+    border-radius: 44px;
+    box-shadow: 0 0 0 10px #2A5C54, 0 32px 80px rgba(30,90,80,0.28), inset 0 0 0 1px rgba(255,255,255,0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px 0;
+    flex-shrink: 0;
+  }
+
+  .status-time {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status-icons { display: flex; align-items: center; gap: 6px; }
+
+  .dynamic-island {
+    width: 120px;
+    height: 34px;
+    background: #2A5C54;
+    border-radius: 20px;
+    margin: 8px auto 0;
+    flex-shrink: 0;
+  }
+
+  .phone-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 96px;
+    scrollbar-width: none;
+  }
+  .phone-content::-webkit-scrollbar { display: none; }
+
+  /* Header */
+  .header {
+    padding: 20px 24px 12px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .header-title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    line-height: 1.15;
+    display: inline-block;
+    padding: 4px 12px 4px 10px;
+    border: 1.5px solid rgba(43,175,154,0.55);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(43,175,154,0.08) 0%, rgba(43,175,154,0.02) 100%);
+    box-shadow: 2px 2px 0px var(--accent-dim), inset 0 1px 0 rgba(255,255,255,0.5);
+    position: relative;
+  }
+  .header-title::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 22%; bottom: 22%;
+    width: 2.5px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
+  }
+  .header-title span { color: var(--accent); }
+
+  /* Top-right icon group */
+  .header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .date-badge {
+    text-align: right;
+  }
+  .date-badge .date-line {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(26, 29, 46, 0.6);
+    line-height: 1.5;
+    letter-spacing: 0.01em;
+  }
+
+  .action-icons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: background 0.15s, color 0.15s, transform 0.12s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--accent-dim); color: var(--accent); }
+  .icon-btn:active { transform: scale(0.9); }
+  .icon-btn.has-dot::after {
+    content: '';
+    position: absolute;
+    top: 5px; right: 5px;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    border: 1.5px solid var(--phone-bg);
+  }
+
+  /* Stats */
+  .stats { display: flex; gap: 6px; padding: 4px 24px 12px; }
+
+  .stat {
+    border-radius: 8px;
+    padding: 7px 0;
+    flex: 1;
+    text-align: center;
+  }
+  .stat:nth-child(1) { background: rgba(43,175,154,0.12); }
+  .stat:nth-child(2) { background: rgba(224,122,64,0.10); }
+  .stat:nth-child(3) { background: rgba(123,110,232,0.10); }
+  .stat-num {
+    font-size: 17px; font-weight: 700; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat:nth-child(1) .stat-num { color: #2BAF9A; }
+  .stat:nth-child(2) .stat-num { color: #E07A40; }
+  .stat:nth-child(3) .stat-num { color: #7B6EE8; }
+  .stat-label { font-size: 9px; color: var(--text-muted); font-weight: 500; margin-top: 1px; }
+
+  /* Filters */
+  .filters { display: flex; gap: 8px; padding: 0 24px 16px; }
+  .filter-btn {
+    padding: 7px 14px; border-radius: 20px; border: none;
+    font-family: var(--font); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+    background: var(--surface); color: var(--text-muted);
+  }
+  .filter-btn.active { background: var(--accent); color: #fff; }
+
+  /* List */
+  .list { padding: 0 24px; display: flex; flex-direction: column; gap: 8px; }
+
+  .task-item {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px 14px 14px 16px;
+    display: flex; align-items: flex-start; gap: 12px;
+    cursor: default; user-select: none;
+  }
+
+  .task-item.entering { animation: slideIn 0.22s cubic-bezier(0.34,1.42,0.64,1) both; }
+  @keyframes slideIn {
+    from { opacity:0; transform: translateY(-10px) scale(0.97); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+  }
+  .task-item.leaving { animation: slideOut 0.18s ease-in both; }
+  @keyframes slideOut { to { opacity:0; transform: translateX(12px) scale(0.96); } }
+
+  .check {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 2px solid #B5DDD8; flex-shrink: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; background: #EBF7F5; margin-top: 1px;
+  }
+  .check:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .task-item.done .check { background: var(--accent); border-color: var(--accent); }
+  .check-icon { display: none; }
+  .task-item.done .check-icon { display: block; }
+
+  .task-body { flex: 1; min-width: 0; }
+
+  .task-text {
+    font-size: 14px; line-height: 1.4; color: var(--text);
+    transition: color 0.2s; word-break: break-word;
+  }
+  .task-item.done .task-text {
+    color: var(--done-text); text-decoration: line-through;
+    text-decoration-color: var(--done-text);
+  }
+
+  /* Attached photo */
+  .task-photo {
+    margin-top: 8px; border-radius: 10px; overflow: hidden;
+    max-height: 120px; display: flex;
+  }
+  .task-photo img {
+    width: 100%; height: 120px; object-fit: cover; display: block;
+  }
+
+  .del-btn {
+    width: 28px; height: 28px; border: none; background: none;
+    cursor: pointer; border-radius: 8px; display: flex;
+    align-items: center; justify-content: center; color: #C8CCDA;
+    transition: color 0.15s, background 0.15s; flex-shrink: 0;
+  }
+  .del-btn:hover { color: var(--danger); background: #FDEAEA; }
+
+  /* Photo preview strip in input area */
+  .photo-preview-wrap {
+    display: none;
+    padding: 8px 4px 0;
+  }
+  .photo-preview-wrap.visible { display: flex; gap: 8px; align-items: center; }
+  .photo-thumb {
+    width: 52px; height: 52px; border-radius: 10px;
+    object-fit: cover; flex-shrink: 0;
+    border: 2px solid var(--accent-dim);
+  }
+  .photo-remove {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--danger); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0; font-size: 12px; line-height: 1;
+  }
+
+  /* Empty */
+  .empty { text-align: center; padding: 40px 0; color: var(--text-muted); }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.35; }
+  .empty-text { font-size: 13px; font-weight: 500; }
+
+  /* Bottom input bar */
+  .bottom-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(238,252,250,0.95);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(43,175,154,0.15);
+    padding: 10px 20px 28px;
+  }
+
+  .input-row {
+    display: flex; gap: 8px;
+    background: var(--phone-bg);
+    border-radius: 14px;
+    border: 1.5px solid rgba(43,175,154,0.55);
+    padding: 4px 4px 4px 12px;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(43,175,154,0.10);
+  }
+
+  .photo-upload-btn {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+  }
+  .photo-upload-btn:hover { color: var(--accent); background: var(--accent-dim); }
+  .photo-upload-btn.has-photo { color: var(--accent); }
+
+  .input-field {
+    flex: 1; border: none; outline: none;
+    font-family: var(--font); font-size: 14px; color: var(--text);
+    background: transparent; padding: 8px 0; min-width: 0;
+  }
+  .input-field::placeholder { color: var(--text-muted); }
+
+  .add-btn {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--accent); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: transform 0.12s, opacity 0.12s;
+  }
+  .add-btn:hover { opacity: 0.85; }
+  .add-btn:active { transform: scale(0.92); }
+
+  /* Calendar modal */
+  .modal-overlay {
+    position: absolute; inset: 0;
+    background: rgba(26,80,70,0.35);
+    display: flex; align-items: flex-end;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 100;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .cal-sheet {
+    width: 100%; background: var(--phone-bg);
+    border-radius: 24px 24px 0 0;
+    padding: 0 0 32px;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    max-height: 88%;
+    display: flex; flex-direction: column;
+  }
+  .modal-overlay.open .cal-sheet { transform: translateY(0); }
+
+  .sheet-handle {
+    width: 36px; height: 4px; background: #B5DDD8;
+    border-radius: 2px; margin: 12px auto 0;
+  }
+
+  .cal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 12px;
+  }
+  .cal-month-label {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.02em; color: var(--text);
+  }
+  .cal-nav {
+    display: flex; gap: 4px;
+  }
+  .cal-nav button {
+    width: 30px; height: 30px; border-radius: 8px; border: none;
+    background: var(--surface); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); transition: background 0.15s;
+  }
+  .cal-nav button:hover { background: var(--accent-dim); color: var(--accent); }
+
+  .cal-grid {
+    padding: 0 16px 12px;
+    overflow-y: auto; flex: 1;
+  }
+
+  .cal-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
+  }
+  .cal-wd {
+    text-align: center; font-size: 10px; font-weight: 600;
+    color: var(--text-muted); padding: 4px 0;
+    letter-spacing: 0.04em;
+  }
+  .cal-wd:first-child { color: #E85C5C; }
+  .cal-wd:last-child { color: var(--accent); }
+
+  .cal-days {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+  }
+
+  .cal-day {
+    aspect-ratio: 1; border-radius: 10px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; font-size: 13px; font-weight: 500;
+    color: var(--text); transition: background 0.12s;
+    position: relative; gap: 2px;
+  }
+  .cal-day:hover { background: var(--surface); }
+  .cal-day.empty { pointer-events: none; }
+  .cal-day.today { font-weight: 700; color: var(--accent); }
+  .cal-day.today::before {
+    content: '';
+    position: absolute; bottom: 5px;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .cal-day.selected { background: var(--accent) !important; color: #fff !important; }
+  .cal-day.selected::before { background: rgba(255,255,255,0.7); }
+  .cal-day.has-task .dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+  }
+  .cal-day.selected .dot { background: rgba(255,255,255,0.7); }
+  .cal-day.sun { color: #E85C5C; }
+  .cal-day.sat { color: var(--accent); }
+  .cal-day.selected.sun, .cal-day.selected.sat { color: #fff; }
+
+  .cal-task-section {
+    padding: 0 20px 8px;
+    border-top: 1px solid var(--surface-2);
+  }
+  .cal-task-date-label {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    padding: 12px 0 8px; letter-spacing: 0.02em;
+  }
+  .cal-task-list { display: flex; flex-direction: column; gap: 6px; }
+  .cal-task-item {
+    background: var(--surface); border-radius: 10px;
+    padding: 10px 12px; font-size: 13px; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .cal-task-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .cal-no-task { font-size: 13px; color: var(--text-muted); padding: 4px 0 8px; }
+
+  .cal-input-row {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  .cal-input {
+    flex: 1; border: none; outline: none; font-family: var(--font);
+    font-size: 13px; color: var(--text); background: var(--surface);
+    border-radius: 10px; padding: 10px 12px; min-width: 0;
+  }
+  .cal-input::placeholder { color: var(--text-muted); }
+  .cal-add-btn {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--accent); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: opacity 0.12s;
+  }
+  .cal-add-btn:hover { opacity: 0.85; }
+
+  .home-bar {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 5px; background: rgba(43,175,154,0.30); border-radius: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .task-item.entering, .task-item.leaving { animation: none; }
+    .cal-sheet, .modal-overlay { transition: none; }
+  }
+
+  @media (max-width: 440px) {
+    body { padding: 0; align-items: stretch; }
+    .phone { width: 100%; min-height: 100vh; border-radius: 0; box-shadow: none; }
+  }
+</style>
+
+<div class="phone">
+  <div class="status-bar">
+    <div class="status-time" id="status-time">9:41</div>
+    <div class="status-icons">
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+        <rect x="0" y="3" width="3" height="9" rx="1" fill="#1A3330" opacity="0.4"/>
+        <rect x="4.5" y="2" width="3" height="10" rx="1" fill="#1A3330" opacity="0.6"/>
+        <rect x="9" y="0" width="3" height="12" rx="1" fill="#1A3330"/>
+        <rect x="13.5" y="1" width="3" height="10" rx="1" fill="#1A3330" opacity="0.3"/>
+      </svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+        <path d="M8 2.5C10.5 2.5 12.7 3.6 14.2 5.3L15.5 4C13.6 1.9 11 0.5 8 0.5C5 0.5 2.4 1.9 0.5 4L1.8 5.3C3.3 3.6 5.5 2.5 8 2.5Z" fill="#1A3330" opacity="0.4"/>
+        <path d="M8 5.5C9.7 5.5 11.2 6.2 12.3 7.3L13.6 6C12.1 4.5 10.2 3.5 8 3.5C5.8 3.5 3.9 4.5 2.4 6L3.7 7.3C4.8 6.2 6.3 5.5 8 5.5Z" fill="#1A3330" opacity="0.7"/>
+        <circle cx="8" cy="10" r="1.5" fill="#1A3330"/>
+      </svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+        <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="#1A3330" stroke-opacity="0.35"/>
+        <rect x="2" y="2" width="16" height="8" rx="2" fill="#1A3330"/>
+        <path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6C24.5 5.5 23.8 4.8 23 4.5Z" fill="#1A3330" opacity="0.4"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="dynamic-island"></div>
+
+  <div class="phone-content">
+    <div class="header">
+      <div class="header-top">
+        <div class="header-title">Today's Tasks<span>.</span></div>
+        <div class="header-actions">
+          <div class="date-badge">
+            <div class="date-line" id="date-day"></div>
+            <div class="date-line" id="date-month"></div>
+          </div>
+          <div class="action-icons">
+            <!-- Calendar icon -->
+            <button class="icon-btn" id="cal-btn" aria-label="달력">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <rect x="2" y="3.5" width="14" height="12.5" rx="3" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M2 7.5H16" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M6 2V5M12 2V5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="6" cy="11" r="1" fill="currentColor"/>
+                <circle cx="9" cy="11" r="1" fill="currentColor"/>
+                <circle cx="12" cy="11" r="1" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-num" id="stat-total">0</div>
+        <div class="stat-label">전체</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="stat-remain">0</div>
+        <div class="stat-label">남은 작업</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="stat-done">0</div>
+        <div class="stat-label">완료</div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">전체</button>
+      <button class="filter-btn" data-filter="active">미완료</button>
+      <button class="filter-btn" data-filter="done">완료</button>
+    </div>
+
+    <div class="list" id="task-list"></div>
+  </div>
+
+  <!-- Bottom input bar -->
+  <div class="bottom-bar">
+    <div class="photo-preview-wrap" id="photo-preview-wrap">
+      <img class="photo-thumb" id="photo-thumb" src="" alt="첨부 사진">
+      <button class="photo-remove" id="photo-remove" aria-label="사진 제거">✕</button>
+    </div>
+    <div class="input-row">
+      <!-- Photo upload button -->
+      <button class="photo-upload-btn" id="photo-upload-btn" aria-label="사진 첨부">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="2" y="5" width="16" height="12" rx="3" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="10" cy="11" r="3" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M7 5L8.2 3H11.8L13 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="15.5" cy="8" r="1" fill="currentColor"/>
+        </svg>
+      </button>
+      <input type="file" id="photo-input" accept="image/*" style="display:none">
+      <input class="input-field" id="task-input" placeholder="새 작업 추가..." maxlength="120" autocomplete="off">
+      <button class="add-btn" id="add-btn" aria-label="추가">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 3V15M3 9H15" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="home-bar"></div>
+
+  <!-- Calendar modal -->
+  <div class="modal-overlay" id="cal-modal">
+    <div class="cal-sheet">
+      <div class="sheet-handle"></div>
+      <div class="cal-header">
+        <div class="cal-month-label" id="cal-month-label"></div>
+        <div class="cal-nav">
+          <button id="cal-prev" aria-label="이전 달">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9 3L5 7L9 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button id="cal-next" aria-label="다음 달">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M5 3L9 7L5 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="cal-grid">
+        <div class="cal-weekdays">
+          <div class="cal-wd">일</div><div class="cal-wd">월</div>
+          <div class="cal-wd">화</div><div class="cal-wd">수</div>
+          <div class="cal-wd">목</div><div class="cal-wd">금</div>
+          <div class="cal-wd">토</div>
+        </div>
+        <div class="cal-days" id="cal-days"></div>
+      </div>
+
+      <div class="cal-task-section">
+        <div class="cal-task-date-label" id="cal-task-label">날짜를 선택하세요</div>
+        <div class="cal-task-list" id="cal-task-list"></div>
+        <div class="cal-input-row">
+          <input class="cal-input" id="cal-task-input" placeholder="이 날 할 일 추가..." maxlength="80" autocomplete="off">
+          <button class="cal-add-btn" id="cal-add-btn" aria-label="추가">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 2V14M2 8H14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Clock
+  function updateClock() {
+    const n = new Date();
+    const h = String(n.getHours()).padStart(2,'0');
+    const m = String(n.getMinutes()).padStart(2,'0');
+    document.getElementById('status-time').textContent = `${h}:${m}`;
+  }
+  updateClock(); setInterval(updateClock, 10000);
+
+  // Date badge
+  const now = new Date();
+  const DAYS_KO = ['일','월','화','수','목','금','토'];
+  const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('date-day').textContent = `${now.getDate()}일 ${DAYS_KO[now.getDay()]}요일`;
+  document.getElementById('date-month').textContent = `${now.getFullYear()}년 ${MONTHS_KO[now.getMonth()]}`;
+
+  // ── Today tasks ──
+  const STORAGE_KEY = 'todo-v3';
+  let tasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  let filter = 'all';
+  let nextId = tasks.reduce((m,t) => Math.max(m, t.id||0), 0) + 1;
+  let pendingPhoto = null; // base64
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+
+  function updateStats() {
+    const total = tasks.length, done = tasks.filter(t=>t.done).length;
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-remain').textContent = total - done;
+    document.getElementById('stat-done').textContent = done;
+  }
+
+  function filteredTasks() {
+    if (filter==='active') return tasks.filter(t=>!t.done);
+    if (filter==='done') return tasks.filter(t=>t.done);
+    return tasks;
+  }
+
+  function render() {
+    const list = document.getElementById('task-list');
+    const visible = filteredTasks();
+
+    Array.from(list.children).forEach(el => {
+      if (el.classList.contains('empty')) return;
+      const id = Number(el.dataset.id);
+      if (!visible.find(t=>t.id===id)) {
+        el.classList.add('leaving');
+        el.addEventListener('animationend', ()=>el.remove(), {once:true});
+      }
+    });
+
+    visible.forEach((task, i) => {
+      let el = list.querySelector(`[data-id="${task.id}"]`);
+      if (!el) {
+        el = createItem(task);
+        const siblings = Array.from(list.children).filter(c=>!c.classList.contains('empty'));
+        if (siblings[i]) list.insertBefore(el, siblings[i]);
+        else list.appendChild(el);
+        el.classList.add('entering');
+      } else {
+        el.classList.toggle('done', task.done);
+      }
+    });
+
+    let empty = list.querySelector('.empty');
+    if (visible.length === 0) {
+      if (!empty) {
+        empty = document.createElement('div'); empty.className = 'empty';
+        const m = {all:['📋','할 일이 없어요'],active:['✅','남은 작업이 없어요!'],done:['🎯','완료된 작업이 없어요']}[filter];
+        empty.innerHTML = `<div class="empty-icon">${m[0]}</div><div class="empty-text">${m[1]}</div>`;
+        list.appendChild(empty);
+      }
+    } else if (empty) { empty.remove(); }
+
+    updateStats();
+    updateCalBtn();
+  }
+
+  function createItem(task) {
+    const el = document.createElement('div');
+    el.className = 'task-item' + (task.done ? ' done' : '');
+    el.dataset.id = task.id;
+
+    const photoHtml = task.photo
+      ? `<div class="task-photo"><img src="${task.photo}" alt="첨부 사진"></div>`
+      : '';
+
+    el.innerHTML = `
+      <div class="check" role="button" aria-label="완료 토글" tabindex="0">
+        <svg class="check-icon" width="12" height="9" viewBox="0 0 12 9" fill="none">
+          <path d="M1.5 4.5L4.5 7.5L10.5 1.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="task-body">
+        <span class="task-text">${escapeHtml(task.text)}</span>
+        ${photoHtml}
+      </div>
+      <button class="del-btn" aria-label="삭제">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>`;
+
+    el.querySelector('.check').addEventListener('click', ()=>toggleDone(task.id));
+    el.querySelector('.check').addEventListener('keydown', e=>{
+      if (e.key==='Enter'||e.key===' '){e.preventDefault();toggleDone(task.id);}
+    });
+    el.querySelector('.del-btn').addEventListener('click', ()=>deleteTask(task.id, el));
+    return el;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function addTask() {
+    const input = document.getElementById('task-input');
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    tasks.unshift({ id: nextId++, text, done: false, photo: pendingPhoto });
+    save(); input.value = '';
+    clearPendingPhoto();
+    render();
+  }
+
+  function toggleDone(id) {
+    const t = tasks.find(t=>t.id===id);
+    if (t) { t.done = !t.done; save(); render(); }
+  }
+
+  function deleteTask(id, el) {
+    el.classList.add('leaving');
+    el.addEventListener('animationend', ()=>{ tasks=tasks.filter(t=>t.id!==id); save(); render(); }, {once:true});
+  }
+
+  // Photo upload
+  const photoInput = document.getElementById('photo-input');
+  const photoUploadBtn = document.getElementById('photo-upload-btn');
+  const photoPreviewWrap = document.getElementById('photo-preview-wrap');
+  const photoThumb = document.getElementById('photo-thumb');
+
+  photoUploadBtn.addEventListener('click', ()=>photoInput.click());
+
+  photoInput.addEventListener('change', ()=>{
+    const file = photoInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      pendingPhoto = e.target.result;
+      photoThumb.src = pendingPhoto;
+      photoPreviewWrap.classList.add('visible');
+      photoUploadBtn.classList.add('has-photo');
+    };
+    reader.readAsDataURL(file);
+    photoInput.value = '';
+  });
+
+  document.getElementById('photo-remove').addEventListener('click', clearPendingPhoto);
+
+  function clearPendingPhoto() {
+    pendingPhoto = null;
+    photoThumb.src = '';
+    photoPreviewWrap.classList.remove('visible');
+    photoUploadBtn.classList.remove('has-photo');
+  }
+
+  document.getElementById('add-btn').addEventListener('click', addTask);
+  document.getElementById('task-input').addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
+
+  document.querySelectorAll('.filter-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      filter = btn.dataset.filter;
+      document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active', b===btn));
+      render();
+    });
+  });
+
+  // ── Calendar ──
+  const CAL_KEY = 'cal-tasks-v1';
+  let calTasks = JSON.parse(localStorage.getItem(CAL_KEY) || '{}'); // { "2025-08-03": ["task1", ...] }
+  let calYear, calMonth, calSelectedDate = null;
+
+  function saveCalTasks() { localStorage.setItem(CAL_KEY, JSON.stringify(calTasks)); }
+
+  function calDateKey(y, m, d) {
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  function openCalendar() {
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    calYear = next.getFullYear(); calMonth = next.getMonth();
+    calSelectedDate = null;
+    renderCalendar();
+    document.getElementById('cal-modal').classList.add('open');
+  }
+
+  function closeCalendar() {
+    document.getElementById('cal-modal').classList.remove('open');
+  }
+
+  function renderCalendar() {
+    const label = `${calYear}년 ${MONTHS_KO[calMonth]}`;
+    document.getElementById('cal-month-label').textContent = label;
+
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+    const todayKey = calDateKey(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const container = document.getElementById('cal-days');
+    container.innerHTML = '';
+
+    for (let i = 0; i < firstDay; i++) {
+      const blank = document.createElement('div');
+      blank.className = 'cal-day empty';
+      container.appendChild(blank);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = calDateKey(calYear, calMonth, d);
+      const dow = (firstDay + d - 1) % 7;
+      const div = document.createElement('div');
+      div.className = 'cal-day';
+      if (dow === 0) div.classList.add('sun');
+      if (dow === 6) div.classList.add('sat');
+      if (key === todayKey) div.classList.add('today');
+      if (calSelectedDate === key) div.classList.add('selected');
+      if (calTasks[key] && calTasks[key].length > 0) div.classList.add('has-task');
+
+      div.innerHTML = `<span>${d}</span>${(calTasks[key]&&calTasks[key].length)?'<div class="dot"></div>':''}`;
+      div.addEventListener('click', ()=>selectCalDay(key));
+      container.appendChild(div);
+    }
+
+    renderCalTaskSection();
+  }
+
+  function selectCalDay(key) {
+    calSelectedDate = key;
+    renderCalendar();
+  }
+
+  function renderCalTaskSection() {
+    const label = document.getElementById('cal-task-label');
+    const taskList = document.getElementById('cal-task-list');
+
+    if (!calSelectedDate) {
+      label.textContent = '날짜를 선택하세요';
+      taskList.innerHTML = '';
+      return;
+    }
+
+    const [y, m, d] = calSelectedDate.split('-');
+    label.textContent = `${parseInt(y)}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+
+    const items = calTasks[calSelectedDate] || [];
+    if (items.length === 0) {
+      taskList.innerHTML = '<div class="cal-no-task">등록된 할 일이 없어요</div>';
+    } else {
+      taskList.innerHTML = items.map((t, i) =>
+        `<div class="cal-task-item">
+          <div class="dot"></div>
+          <span style="flex:1">${escapeHtml(t)}</span>
+          <button onclick="deleteCalTask(${i})" style="border:none;background:none;cursor:pointer;color:#C8CCDA;font-size:13px;padding:0 2px;">✕</button>
+        </div>`
+      ).join('');
+    }
+  }
+
+  window.deleteCalTask = function(i) {
+    if (!calSelectedDate) return;
+    calTasks[calSelectedDate].splice(i, 1);
+    if (calTasks[calSelectedDate].length === 0) delete calTasks[calSelectedDate];
+    saveCalTasks(); renderCalendar(); updateCalBtn();
+  };
+
+  function addCalTask() {
+    if (!calSelectedDate) return;
+    const input = document.getElementById('cal-task-input');
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    if (!calTasks[calSelectedDate]) calTasks[calSelectedDate] = [];
+    calTasks[calSelectedDate].push(text);
+    saveCalTasks(); input.value = '';
+    renderCalendar(); updateCalBtn();
+  }
+
+  function updateCalBtn() {
+    const total = Object.values(calTasks).reduce((s,a)=>s+a.length,0);
+    const btn = document.getElementById('cal-btn');
+    btn.classList.toggle('has-dot', total > 0);
+  }
+
+  document.getElementById('cal-btn').addEventListener('click', openCalendar);
+  document.getElementById('cal-modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeCalendar(); });
+  document.getElementById('cal-prev').addEventListener('click', ()=>{
+    calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar();
+  });
+  document.getElementById('cal-next').addEventListener('click', ()=>{
+    calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar();
+  });
+  document.getElementById('cal-add-btn').addEventListener('click', addCalTask);
+  document.getElementById('cal-task-input').addEventListener('keydown', e=>{ if(e.key==='Enter') addCalTask(); });
+
+  // Init
+  if (tasks.length === 0) {
+    tasks = [
+      { id: nextId++, text: '장보기 — 우유, 달걀, 빵', done: false, photo: null },
+      { id: nextId++, text: '운동 30분', done: true, photo: null },
+      { id: nextId++, text: '독서 20페이지', done: false, photo: null },
+    ];
+    save();
+  }
+
+  render();
+  updateCalBtn();
+</script>
